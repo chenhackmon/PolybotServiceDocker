@@ -1,27 +1,38 @@
-import flask
-from flask import request
-import os
-from bot import ObjectDetectionBot
+import flask # Import Flask library
+from flask import request # Import flask request object.
+import os  # Import os module to get environment variables
+import boto3 # Import boto3 to interact with AWS services
+from bot import ObjectDetectionBot # Import custom bot class
+import logging # Import logging module
 
-app = flask.Flask(__name__)
+logging.basicConfig(level=logging.INFO) # Set logging level
+logger = logging.getLogger(__name__) # Create the logger
+app = flask.Flask(__name__) # Initialize the flask app
 
-TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
-TELEGRAM_APP_URL = os.environ['TELEGRAM_APP_URL']
+# --- Configuration ---
+TELEGRAM_APP_URL = os.environ['TELEGRAM_APP_URL'] # Load telegram bot URL from environment variable
+S3_BUCKET_NAME = os.environ['BUCKET_NAME']  # Load s3 bucket name from environment variable
+TELEGRAM_TOKEN= os.environ['TELEGRAM_TOKEN']  # Load telegram token from environment variable
+
+# --- S3 Client Initialization ---
+s3_client = boto3.client('s3')  # Create S3 client
+
+# --- Bot Initialization ---
+bot = ObjectDetectionBot(TELEGRAM_TOKEN, TELEGRAM_APP_URL, S3_BUCKET_NAME, s3_client) # create bot instance
 
 
-@app.route('/', methods=['GET'])
-def index():
+# --- Define Routes ---
+@app.route('/', methods=['GET']) # Define index page
+def index():  # index function, will return "ok" for a healthy service
     return 'Ok'
 
+@app.route(f'/{TELEGRAM_TOKEN}/', methods=['POST']) # Define Telegram Webhook endpoint using the bot token
+def webhook():  # Create method to handle webhook requests
+    req = request.get_json() # Get the request body as JSON
+    logger.info(f'Received webhook request: {req}')  # Log the received request.
+    bot.handle_message(req['message']) # Send message to bot handle_message
+    return 'Ok' # Return 'Ok' to telegram
 
-@app.route(f'/{TELEGRAM_TOKEN}/', methods=['POST'])
-def webhook():
-    req = request.get_json()
-    bot.handle_message(req['message'])
-    return 'Ok'
-
-
-if __name__ == "__main__":
-    bot = ObjectDetectionBot(TELEGRAM_TOKEN, TELEGRAM_APP_URL)
-
-    app.run(host='0.0.0.0', port=8443)
+# --- Main Execution ---
+if __name__ == "__main__": # Check if script is run directly.
+    app.run(host='0.0.0.0', port=8443) # Run the flask app on port 8443, expose to all IPs.

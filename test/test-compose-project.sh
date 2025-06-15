@@ -62,4 +62,3 @@ if [ "$response_code" -ne 200 ]; then
 fi
 
 echo -e "\n✅ The polybot service is available"
-
